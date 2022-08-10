@@ -1,10 +1,10 @@
-import { MessageEmbed, FileOptions } from 'discord.js';
+import { Embed, BufferResolvable } from 'discord.js';
 
 export interface MessageData {
     username: string;
     avatar?: string;
     content?: string;
-    embeds?: MessageEmbed[];
-    files?: FileOptions[];
+    embeds?: Embed[];
+    files?: { attachment: BufferResolvable; name: string; description?: string }[];
     pinned?: boolean;
 }

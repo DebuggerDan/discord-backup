@@ -8,7 +8,7 @@ import type {
     TextChannelData,
     VoiceChannelData
 } from './types';
-import type { CategoryChannel, Guild, TextChannel, VoiceChannel } from 'discord.js';
+import { CategoryChannel, ChannelType, Guild, GuildChannel, TextChannel, VoiceChannel } from 'discord.js';
 import nodeFetch from 'node-fetch';
 import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } from './util';
 
@@ -19,7 +19,7 @@ import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } 
  */
 export async function getBans(guild: Guild) {
     const bans: BanData[] = [];
-    const cases = await guild.fetchBans(); // Gets the list of the banned members
+    const cases = await guild.bans.fetch(); // Gets the list of the banned members
     cases.forEach((ban) => {
         bans.push({
             id: ban.user.id, // Banned member ID
@@ -89,10 +89,10 @@ export async function getChannels(guild: Guild, options: CreateOptions) {
             others: []
         };
         // Gets the list of the categories and sort them by position
-        const categories = guild.channels.cache
-            .filter((ch) => ch.type === 'category')
-            .sort((a, b) => a.position - b.position)
-            .array() as CategoryChannel[];
+        const categories: CategoryChannel[] = guild.channels.cache
+            .filter((ch) => ch.type === ChannelType.GuildCategory)
+            .map((ch) => ch as CategoryChannel)
+            .sort((a, b) => a.position - b.position);
         for (const category of categories) {
             const categoryData: CategoryData = {
                 name: category.name, // The name of the category
@@ -100,10 +100,10 @@ export async function getChannels(guild: Guild, options: CreateOptions) {
                 children: [] // The children channels of the category
             };
             // Gets the children channels of the category and sort them by position
-            const children = category.children.sort((a, b) => a.position - b.position).array();
+            const children = category.children.cache.sort((a, b) => a.position - b.position).values();
             for (const child of children) {
                 // For each child channel
-                if (child.type === 'text' || child.type === 'news') {
+                if (child.type === ChannelType.GuildText || child.type === ChannelType.GuildNews) {
                     const channelData: TextChannelData = await fetchTextChannelData(child as TextChannel, options); // Gets the channel data
                     categoryData.children.push(channelData); // And then push the child in the categoryData
                 } else {
@@ -115,12 +115,13 @@ export async function getChannels(guild: Guild, options: CreateOptions) {
         }
         // Gets the list of the other channels (that are not in a category) and sort them by position
         const others = guild.channels.cache
-            .filter((ch) => !ch.parent && ch.type !== 'category')
+            .filter((ch) => !ch.parent && ch.type !== ChannelType.GuildCategory)
+            .map((ch) => ch as GuildChannel)
             .sort((a, b) => a.position - b.position)
-            .array();
+            .values();
         for (const channel of others) {
             // For each channel
-            if (channel.type === 'text') {
+            if (channel.type === ChannelType.GuildText) {
                 const channelData: TextChannelData = await fetchTextChannelData(channel as TextChannel, options); // Gets the channel data
                 channels.others.push(channelData); // Update channels object
             } else {
