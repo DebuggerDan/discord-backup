@@ -72,6 +72,7 @@ export const create = async (
         maxMessagesPerChannel: 10,
         jsonSave: true,
         jsonBeautify: true,
+        includeName: true,
         doNotBackup: [],
         saveImages: ''
     }
@@ -79,7 +80,6 @@ export const create = async (
     return new Promise<BackupData>(async (resolve, reject) => {
         try {
             const backupData: BackupData = {
-                name: guild.name,
                 verificationLevel: guild.verificationLevel,
                 explicitContentFilter: guild.explicitContentFilter,
                 defaultMessageNotifications: guild.defaultMessageNotifications,
@@ -93,9 +93,11 @@ export const create = async (
                 bans: [],
                 emojis: [],
                 createdTimestamp: Date.now(),
-                guildID: guild.id,
                 id: options.backupID ?? SnowflakeUtil.generate({ timestamp: Date.now() })
             };
+            if (options.includeName) {
+                backupData.name = guild.name;
+            }
             if (guild.iconURL()) {
                 if (options && options.saveImages && options.saveImages === 'base64') {
                     backupData.iconBase64 = (await nodeFetch(guild.iconURL()).then((res) => res.buffer())).toString(
@@ -139,8 +141,8 @@ export const create = async (
             if (!options || options.jsonSave === undefined || options.jsonSave) {
                 // Convert Object to JSON
                 const backupJSON = options.jsonBeautify
-                    ? JSON.stringify(backupData, null, 4)
-                    : JSON.stringify(backupData);
+                    ? JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 4)
+                    : JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
                 // Save the backup
                 await writeFileAsync(`${backups}${sep}${backupData.id}.json`, backupJSON, 'utf-8');
             }

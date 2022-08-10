@@ -2,7 +2,7 @@ import { GuildDefaultMessageNotifications, GuildExplicitContentFilter, GuildVeri
 import { AfkData, BanData, ChannelsData, EmojiData, RoleData, WidgetData } from './';
 
 export interface BackupData {
-    name: string;
+    name?: string;
     iconURL?: string;
     iconBase64?: string;
     verificationLevel: GuildVerificationLevel;
@@ -19,6 +19,6 @@ export interface BackupData {
     bans: BanData[];
     emojis: EmojiData[];
     createdTimestamp: number;
-    guildID: string;
+    guildID?: string;
     id: bigint;
 }
