@@ -141,7 +141,7 @@ export async function fetchTextChannelData(channel: TextChannel | NewsChannel, o
 export async function loadCategory(categoryData: CategoryData, guild: Guild, rateLimitManager: RateLimitManager) {
     return new Promise<CategoryChannel>((resolve) => {
         rateLimitManager
-            .resolver(guild.channels, 'create', categoryData.name, { type: 'category' })
+            .resolver(guild.channels, 'create', { name: categoryData.name, type: ChannelType.GuildCategory })
             .then(async (category) => {
                 // When the category is created
                 const finalPermissions: OverwriteData[] = [];
@@ -195,62 +195,66 @@ export async function loadChannel(
             createOptions.userLimit = (channelData as VoiceChannelData).userLimit;
             createOptions.type = ChannelType.GuildVoice;
         }
-        rateLimitManager.resolver(guild.channels, 'create', channelData.name, createOptions).then(async (channel) => {
-            /* Update channel permissions */
-            const finalPermissions: OverwriteData[] = [];
-            channelData.permissions.forEach((perm) => {
-                const role = guild.roles.cache.find((r) => r.name === perm.roleName);
-                if (role) {
-                    finalPermissions.push({
-                        id: role.id,
-                        allow: perm.allow,
-                        deny: perm.deny
-                    });
+        rateLimitManager
+            .resolver(guild.channels, 'create', { name: channelData.name, ...createOptions })
+            .then(async (channel) => {
+                /* Update channel permissions */
+                const finalPermissions: OverwriteData[] = [];
+                channelData.permissions.forEach((perm) => {
+                    const role = guild.roles.cache.find((r) => r.name === perm.roleName);
+                    if (role) {
+                        finalPermissions.push({
+                            id: role.id,
+                            allow: perm.allow,
+                            deny: perm.deny
+                        });
+                    }
+                });
+                await rateLimitManager.resolver(channel, 'overwritePermissions', finalPermissions);
+                /* Load messages */
+                if (channelData.type === 'text' && (channelData as TextChannelData).messages.length > 0) {
+                    rateLimitManager
+                        .resolver(channel as TextChannel, 'createWebhook', {
+                            name: 'MessagesBackup',
+                            avatar: channel.client.user.displayAvatarURL()
+                        })
+                        .then(async (webhook) => {
+                            let messages = (channelData as TextChannelData).messages
+                                .filter((m) => m.content.length > 0 || m.embeds.length > 0 || m.files.length > 0)
+                                .reverse();
+                            messages = messages.slice(messages.length - options.maxMessagesPerChannel);
+                            for (const msg of messages) {
+                                const embedsClear: any = [];
+
+                                msg.embeds.forEach((embed) => {
+                                    const clear: any = {};
+                                    for (const [key, values] of Object.entries(embed).filter(([_, v]) => !!v)) {
+                                        clear[key] = values;
+                                    }
+                                    if (!!clear.url && !clear.description) clear.description = 'Embed include url';
+                                    embedsClear.push(clear);
+                                });
+
+                                const sentMsg = await rateLimitManager
+                                    .resolver(webhook, 'send', {
+                                        content: msg.content,
+                                        username: msg.username,
+                                        avatarURL: msg.avatar,
+                                        embeds: embedsClear,
+                                        files: msg.files,
+                                        disableMentions: options.disableWebhookMentions
+                                    })
+                                    .catch((err) => {
+                                        console.log(err.message);
+                                    });
+                                if (msg.pinned && sentMsg) await rateLimitManager.resolver(sentMsg, 'pin');
+                            }
+                            resolve(channel); // Return the channel
+                        });
+                } else {
+                    resolve(channel); // Return the channel
                 }
             });
-            await rateLimitManager.resolver(channel, 'overwritePermissions', finalPermissions);
-            /* Load messages */
-            if (channelData.type === 'text' && (channelData as TextChannelData).messages.length > 0) {
-                rateLimitManager
-                    .resolver(channel as TextChannel, 'createWebhook', 'MessagesBackup', {
-                        avatar: channel.client.user.displayAvatarURL()
-                    })
-                    .then(async (webhook) => {
-                        let messages = (channelData as TextChannelData).messages
-                            .filter((m) => m.content.length > 0 || m.embeds.length > 0 || m.files.length > 0)
-                            .reverse();
-                        messages = messages.slice(messages.length - options.maxMessagesPerChannel);
-                        for (const msg of messages) {
-                            const embedsClear: any = [];
-
-                            msg.embeds.forEach((embed) => {
-                                const clear: any = {};
-                                for (const [key, values] of Object.entries(embed).filter(([_, v]) => !!v)) {
-                                    clear[key] = values;
-                                }
-                                if (!!clear.url && !clear.description) clear.description = 'Embed include url';
-                                embedsClear.push(clear);
-                            });
-
-                            const sentMsg = await rateLimitManager
-                                .resolver(webhook, 'send', msg.content, {
-                                    username: msg.username,
-                                    avatarURL: msg.avatar,
-                                    embeds: embedsClear,
-                                    files: msg.files,
-                                    disableMentions: options.disableWebhookMentions
-                                })
-                                .catch((err) => {
-                                    console.log(err.message);
-                                });
-                            if (msg.pinned && sentMsg) await rateLimitManager.resolver(sentMsg, 'pin');
-                        }
-                        resolve(channel); // Return the channel
-                    });
-            } else {
-                resolve(channel); // Return the channel
-            }
-        });
     });
 }
 

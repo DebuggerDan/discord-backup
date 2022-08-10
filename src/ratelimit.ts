@@ -92,11 +92,13 @@ export class RateLimitManager extends EventEmitter {
             if (!this.process) {
                 this.process = true;
 
-                // Add process
-                do {
-                    //@ts-ignore
-                    await this._process(...this.queue.shift());
-                } while (this.queue.length > 0);
+                if (this.queue.length > 0) {
+                    // Add process
+                    do {
+                        //@ts-ignore
+                        await this._process(...this.queue.shift());
+                    } while (this.queue.length > 0);
+                }
 
                 this.process = false;
                 this.emit('debug', 'finish');
