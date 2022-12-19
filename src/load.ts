@@ -1,5 +1,5 @@
 import type { BackupData, LoadOptions } from './types';
-import type { Emoji, Guild, Role } from 'discord.js';
+import type { ChannelType, Emoji, Guild, GuildFeature, GuildChannel, Role, VoiceChannel } from 'discord.js';
 import { loadCategory, loadChannel } from './util';
 import { RateLimitManager } from './ratelimit';
 
@@ -35,7 +35,7 @@ export const loadConfig = (guild: Guild, backupData: BackupData, rateLimitManage
     if (backupData.defaultMessageNotifications) {
         configPromises.push([guild, 'setDefaultMessageNotifications', backupData.defaultMessageNotifications]);
     }
-    const changeableExplicitLevel = guild.features.includes('COMMUNITY');
+    const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
     if (backupData.explicitContentFilter && changeableExplicitLevel) {
         configPromises.push([guild, 'setExplicitContentFilter', backupData.explicitContentFilter]);
     }
@@ -55,24 +55,20 @@ export const loadRoles = (guild: Guild, backupData: BackupData, rateLimitManager
                 {
                     name: roleData.name,
                     color: roleData.color,
-                    permissions: roleData.permissions,
-                    mentionable: roleData.mentionable,
-                }
-            ]);
+                    permissions: BigInt(roleData.permissions),
+                    mentionable: roleData.mentionable
+                })
+            );
         } else {
-            rolePromises.push([
-                guild.roles,
-                'create',
-                {
-                    data: {
-                        name: roleData.name,
-                        color: roleData.color,
-                        hoist: roleData.hoist,
-                        permissions: roleData.permissions,
-                        mentionable: roleData.mentionable
-                    }
-                }
-            ]);
+            rolePromises.push(
+                guild.roles.create({
+                    name: roleData.name,
+                    color: roleData.color,
+                    hoist: roleData.hoist,
+                    permissions: BigInt(roleData.permissions),
+                    mentionable: roleData.mentionable
+                })
+            );
         }
     });
     return rateLimitManager.resolver(rolePromises);
@@ -107,8 +103,8 @@ export const loadChannels = (guild: Guild, backupData: BackupData, rateLimitMana
 export const loadAFK = (guild: Guild, backupData: BackupData, rateLimitManager: RateLimitManager): Promise<Guild[]> => {
     const afkPromises: [Promise<Guild>[]?, any[]?] = [];
     if (backupData.afk) {
-        afkPromises.push([guild, 'setAFKChannel', guild.channels.cache.find((ch) => ch.name === backupData.afk.name)]);
-        afkPromises.push([guild, 'setAFKTimeout', backupData.afk.timeout]);
+        afkPromises.push(guild.setAFKChannel(guild.channels.cache.find((ch) => ch.name === backupData.afk.name && ch.type === ChannelType.GuildVoice) as VoiceChannel));
+        afkPromises.push(guild.setAFKTimeout(backupData.afk.timeout));
     }
     return rateLimitManager.resolver(afkPromises);
 };
@@ -149,8 +145,8 @@ export const loadBans = (guild: Guild, backupData: BackupData, rateLimitManager:
 export const loadEmbedChannel = (guild: Guild, backupData: BackupData, rateLimitManager: RateLimitManager): Promise<Guild[]> => {
     const embedChannelPromises: [Promise<Guild>[]?, any?] = [];
     if (backupData.widget.channel) {
-        embedChannelPromises.push([
-            guild, 'setWidget', {
+        embedChannelPromises.push(
+            guild.setWidgetSettings({
                 enabled: backupData.widget.enabled,
                 channel: guild.channels.cache.find((ch) => ch.name === backupData.widget.channel)
             },
