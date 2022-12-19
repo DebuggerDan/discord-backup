@@ -11,6 +11,7 @@ import { writeFile, readdir } from 'fs/promises';
 import * as createMaster from './create';
 import * as loadMaster from './load';
 import * as utilMaster from './util';
+import { RateLimitManager } from './ratelimit';
 
 let backups = `${__dirname}/backups`;
 if (!existsSync(backups)) {
@@ -97,15 +98,15 @@ export const create = async (
                 members: [],
                 createdTimestamp: Date.now(),
                 guildID: guild.id,
-                id: options.backupID ?? SnowflakeUtil.generate(Date.now())
+                id: options.backupID ?? SnowflakeUtil.generate({ timestamp: Date.now() })
             };
             if (guild.iconURL()) {
                 if (options && options.saveImages && options.saveImages === 'base64') {
-                    backupData.iconBase64 = (
-                        await nodeFetch(guild.iconURL({ dynamic: true })).then((res) => res.buffer())
-                    ).toString('base64');
+                    backupData.iconBase64 = (await nodeFetch(guild.iconURL()).then((res) => res.buffer())).toString(
+                        'base64'
+                    );
                 }
-                backupData.iconURL = guild.iconURL({ dynamic: true });
+                backupData.iconURL = guild.iconURL();
             }
             if (guild.splashURL()) {
                 if (options && options.saveImages && options.saveImages === 'base64') {
@@ -151,7 +152,7 @@ export const create = async (
                 // Save the backup
                 await writeFile(`${backups}${sep}${backupData.id}.json`, backupJSON, 'utf-8');
             }
-            // Returns ID
+            // Returns BackupData
             resolve(backupData);
         } catch (e) {
             return reject(e);
@@ -167,7 +168,8 @@ export const load = async (
     guild: Guild,
     options: LoadOptions = {
         clearGuildBeforeRestore: true,
-        maxMessagesPerChannel: 10
+        maxMessagesPerChannel: 10,
+        mode: 'auto' // Select mode for Rate Limit
     }
 ) => {
     return new Promise(async (resolve, reject) => {
@@ -176,26 +178,43 @@ export const load = async (
         }
         try {
             const backupData: BackupData = typeof backup === 'string' ? await getBackupData(backup) : backup;
+            // Parse mode
+            if (typeof options.mode != 'string' && typeof options.mode != 'number')
+                throw new Error('Bad options, mode must be string or number');
+
+            const rateLimitManager = new RateLimitManager(
+                50,
+                10000,
+                typeof options.mode == 'string'
+                    ? options.mode == 'slow'
+                        ? 1500
+                        : options.mode == 'fast'
+                        ? 250
+                        : 750
+                    : 750
+            );
+
             try {
                 if (options.clearGuildBeforeRestore === undefined || options.clearGuildBeforeRestore) {
                     // Clear the guild
-                    await utilMaster.clearGuild(guild);
+                    await utilMaster.clearGuild(guild, rateLimitManager);
                 }
+
                 await Promise.all([
                     // Restore guild configuration
-                    loadMaster.loadConfig(guild, backupData),
+                    loadMaster.loadConfig(guild, backupData, rateLimitManager),
                     // Restore guild roles
-                    loadMaster.loadRoles(guild, backupData),
+                    loadMaster.loadRoles(guild, backupData, rateLimitManager),
                     // Restore guild channels
-                    loadMaster.loadChannels(guild, backupData, options),
+                    loadMaster.loadChannels(guild, backupData, rateLimitManager, options),
                     // Restore afk channel and timeout
-                    loadMaster.loadAFK(guild, backupData),
+                    loadMaster.loadAFK(guild, backupData, rateLimitManager),
                     // Restore guild emojis
-                    loadMaster.loadEmojis(guild, backupData),
+                    loadMaster.loadEmojis(guild, backupData, rateLimitManager),
                     // Restore guild bans
-                    loadMaster.loadBans(guild, backupData),
+                    loadMaster.loadBans(guild, backupData, rateLimitManager),
                     // Restore embed channel
-                    loadMaster.loadEmbedChannel(guild, backupData)
+                    loadMaster.loadEmbedChannel(guild, backupData, rateLimitManager)
                 ]);
             } catch (e) {
                 return reject(e);
