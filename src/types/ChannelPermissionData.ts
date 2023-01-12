@@ -1,7 +1,7 @@
-import { PermissionResolvable } from 'discord.js';
+//import { PermissionResolvable } from 'discord.js';
 
 export interface ChannelPermissionsData {
     roleName: string;
-    allow: PermissionResolvable;
-    deny: PermissionResolvable;
+    allow: string;//PermissionResolvable;
+    deny: string;//PermissionResolvable;
 }

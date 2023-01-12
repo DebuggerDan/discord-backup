@@ -3,6 +3,7 @@ import type { BackupData, LoadOptions } from './types';
 import type { NewsChannel, TextChannel, ForumChannel, VoiceBasedChannel } from 'discord.js';
 import { ChannelType, Emoji, Guild, GuildFeature, Role, VoiceChannel } from 'discord.js';
 import { loadCategory, loadChannel } from './util';
+
 import { RateLimitManager } from './ratelimit';
 
 /**
@@ -74,14 +75,13 @@ export const loadRoles = (
                 guild.roles,
                 'create',
                 {
-                    data: {
-                        name: roleData.name,
-                        color: roleData.color,
-                        hoist: roleData.hoist,
-                        //permissions: roleData.permissions,
-                        permissions: BigInt(roleData.permissions),
-                        mentionable: roleData.mentionable
-                    }
+                    //data:
+                    name: roleData.name,
+                    color: roleData.color,
+                    hoist: roleData.hoist,
+                    //permissions: roleData.permissions,
+                    permissions: BigInt(roleData.permissions),
+                    mentionable: roleData.mentionable
                 }
             ]);
         }
@@ -105,7 +105,7 @@ export const loadChannels = (
                 await new Promise((resolve) => {
                     loadCategory(categoryData, guild, rateLimitManager).then((createdCategory) => {
                         categoryData.children.forEach((channelData) => {
-                            loadChannel(channelData, guild, createdCategory, options, rateLimitManager);
+                            loadChannel(channelData, guild, createdCategory, rateLimitManager, options);
                             resolve(true);
                         });
                     });
@@ -149,13 +149,15 @@ export const loadEmojis = (
     backupData.emojis.forEach((emoji) => {
         if (emoji.url) {
             //emojiPromises.push([guild.emojis, 'create', { attachment: emoji.url, name: emoji.name }]);
-            emojiPromises.push([guild.emojis, 'create', { name: emoji.name, attachment: emoji.url }]);
+            emojiPromises.push([guild.emojis, 'create', { 
+                name: emoji.name, 
+                attachment: emoji.url 
+            }]);
         } else if (emoji.base64) {
-            emojiPromises.push([
-                guild.emojis,
-                'create',
-                { name: emoji.name, attachment: Buffer.from(emoji.base64, 'base64') }
-            ]);
+            emojiPromises.push([guild.emojis, 'create', { 
+                name: emoji.name, 
+                attachment: Buffer.from(emoji.base64, 'base64')
+            }]);
         }
     });
     return rateLimitManager.resolver(emojiPromises);
@@ -164,18 +166,11 @@ export const loadEmojis = (
 /**
  * Restore guild bans
  */
-export const loadBans = (
-    guild: Guild,
-    backupData: BackupData,
-    rateLimitManager: RateLimitManager
-): Promise<string[]> => {
+export const loadBans = (guild: Guild, backupData: BackupData, rateLimitManager: RateLimitManager): Promise<string[]> => {
     const banPromises: [Promise<string>[]?, any[]?] = [];
     backupData.bans.forEach((ban) => {
         banPromises.push([
-            guild.members,
-            'ban',
-            ban.id,
-            {
+            guild.members, 'ban', ban.id, {
                 reason: ban.reason
             } 
         ]) // as Promise<string>
@@ -186,18 +181,11 @@ export const loadBans = (
 /**
  * Restore embedChannel configuration
  */
-export const loadEmbedChannel = (
-    guild: Guild,
-    backupData: BackupData,
-    rateLimitManager: RateLimitManager
-): Promise<Guild[]> => {
+export const loadEmbedChannel = (guild: Guild, backupData: BackupData, rateLimitManager: RateLimitManager): Promise<Guild[]> => {
     const embedChannelPromises: [Promise<Guild>[]?, any?] = [];
     if (backupData.widget.channel) {
         embedChannelPromises.push([
-            guild,
-            //'setWidget',
-            'setWidgetSettings',
-            {
+            guild, 'setWidgetSettings', {//'setWidget',
                 enabled: backupData.widget.enabled,
                 channel: guild.channels.cache.find((ch) => ch.name === backupData.widget.channel) as NewsChannel | TextChannel | ForumChannel | VoiceBasedChannel
             }

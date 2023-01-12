@@ -5,5 +5,6 @@ export interface CreateOptions {
     jsonBeautify?: boolean;
     includeName?: boolean;
     doNotBackup?: string[];
+    backupMembers?: boolean;
     saveImages?: string;
 }

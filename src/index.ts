@@ -5,10 +5,11 @@ import { SnowflakeUtil, IntentsBitField } from 'discord.js';
 import nodeFetch from 'node-fetch';
 import { sep } from 'path';
 
-import { existsSync, mkdirSync, readdir, statSync, unlinkSync, writeFile } from 'fs';
-import { promisify } from 'util';
-const writeFileAsync = promisify(writeFile);
-const readdirAsync = promisify(readdir);
+import { existsSync, mkdirSync, statSync, unlinkSync } from 'fs';
+import { writeFile, readdir } from 'fs/promises';
+// import { promisify } from 'util';
+// const writeFileAsync = promisify(writeFile);
+// const readdirAsync = promisify(readdir);
 
 import * as createMaster from './create';
 import * as loadMaster from './load';
@@ -25,7 +26,7 @@ if (!existsSync(backups)) {
  */
 const getBackupData = async (backupID: string) => {
     return new Promise<BackupData>(async (resolve, reject) => {
-        const files = await readdirAsync(backups); // Read "backups" directory
+        const files = await readdir(backups); // Read "backups" directory
         // Try to get the json file
         const file = files.filter((f) => f.split('.').pop() === 'json').find((f) => f === `${backupID}.json`);
         if (file) {
@@ -105,10 +106,16 @@ export const create = async (
             };
             if (options.includeName) {
                 backupData.name = guild.name;
+                /*
+                else {
+                    backupData.name = "N/A";
+                }
+                */
             }
             if (guild.iconURL()) {
                 if (options && options.saveImages && options.saveImages === 'base64') {
-                    backupData.iconBase64 = (await nodeFetch(guild.iconURL()).then((res) => res.buffer())).toString(
+                    backupData.iconBase64 = (
+                        await nodeFetch(guild.iconURL()).then((res) => res.buffer())).toString(
                         'base64'
                     );
                 }
@@ -157,9 +164,8 @@ export const create = async (
                     // : JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
                     ? JSON.stringify(backupData, null, 4)
                     : JSON.stringify(backupData);
-
                 // Save the backup
-                await writeFileAsync(`${backups}${sep}${backupData.id}.json`, backupJSON, 'utf-8');
+                await writeFile(`${backups}${sep}${backupData.id}.json`, backupJSON, 'utf-8');
             }
             // Returns ID // BackupData
             resolve(backupData);
@@ -255,7 +261,7 @@ export const remove = async (backupID: string) => {
  * Returns the list of all backup
  */
 export const list = async () => {
-    const files = await readdirAsync(backups); // Read "backups" directory
+    const files = await readdir(backups); // Read "backups" directory
     return files.map((f) => f.split('.')[0]);
 };
 
