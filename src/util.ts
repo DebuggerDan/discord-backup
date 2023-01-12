@@ -346,7 +346,7 @@ export async function loadChannel(
             createOptions.userLimit = (channelData as VoiceChannelData).userLimit;
             createOptions.type = ChannelType.GuildVoice;
         }
-        rateLimitManager.resolver(guild.channels, 'create', { name: channelData.name, ...createOptions }).then(async (channel) => {//.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
+        guild.channels.create(createOptions).then(async (channel) => {//.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
             /* Update channel permissions */
             const finalPermissions: OverwriteData[] = [];
             channelData.permissions.forEach((perm) => {
