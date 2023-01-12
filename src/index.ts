@@ -74,6 +74,7 @@ export const create = async (
         jsonBeautify: true,
         includeName: true,
         doNotBackup: [],
+        backupMembers: true,
         saveImages: ''
     }
 ) => {
@@ -84,6 +85,7 @@ export const create = async (
         
         try {
             const backupData: BackupData = {
+                name: guild.name,
                 verificationLevel: guild.verificationLevel,
                 explicitContentFilter: guild.explicitContentFilter,
                 defaultMessageNotifications: guild.defaultMessageNotifications,
@@ -96,8 +98,10 @@ export const create = async (
                 roles: [],
                 bans: [],
                 emojis: [],
+                members: [],
                 createdTimestamp: Date.now(),
-                id: options.backupID ?? SnowflakeUtil.generate({ timestamp: Date.now() })
+                guildID: guild.id,
+                id: options.backupID ?? SnowflakeUtil.generate().toString()
             };
             if (options.includeName) {
                 backupData.name = guild.name;
@@ -126,6 +130,10 @@ export const create = async (
                 }
                 backupData.bannerURL = guild.bannerURL();
             }
+            if (options && options.backupMembers) {
+                // Backup members
+                backupData.members = await createMaster.getMembers(guild);
+            }
             if (!options || !(options.doNotBackup || []).includes('bans')) {
                 // Backup bans
                 backupData.bans = await createMaster.getBans(guild);
@@ -145,12 +153,15 @@ export const create = async (
             if (!options || options.jsonSave === undefined || options.jsonSave) {
                 // Convert Object to JSON
                 const backupJSON = options.jsonBeautify
-                    ? JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 4)
-                    : JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
+                    // ? JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 4)
+                    // : JSON.stringify(backupData, (k, v) => (typeof v === 'bigint' ? v.toString() : v));
+                    ? JSON.stringify(backupData, null, 4)
+                    : JSON.stringify(backupData);
+
                 // Save the backup
                 await writeFileAsync(`${backups}${sep}${backupData.id}.json`, backupJSON, 'utf-8');
             }
-            // Returns BackupData
+            // Returns ID // BackupData
             resolve(backupData);
         } catch (e) {
             return reject(e);
@@ -165,7 +176,7 @@ export const load = async (
     backup: string | BackupData,
     guild: Guild,
     options: LoadOptions = {
-        clearGuildBeforeRestore: true,
+        clearGuildBeforeRestore: false,
         maxMessagesPerChannel: 10,
         mode: 'auto' // Select mode for Rate Limit
     }

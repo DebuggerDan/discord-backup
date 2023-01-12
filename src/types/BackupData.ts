@@ -1,8 +1,9 @@
-import { GuildDefaultMessageNotifications, GuildExplicitContentFilter, GuildVerificationLevel } from 'discord.js';
+import { GuildDefaultMessageNotifications, GuildExplicitContentFilter, Snowflake, GuildVerificationLevel } from 'discord.js';
 import { AfkData, BanData, ChannelsData, EmojiData, RoleData, WidgetData } from './';
+import { MemberData } from './MemberData';
 
 export interface BackupData {
-    name?: string;
+    name: string;
     iconURL?: string;
     iconBase64?: string;
     verificationLevel: GuildVerificationLevel;
@@ -18,7 +19,8 @@ export interface BackupData {
     roles: RoleData[];
     bans: BanData[];
     emojis: EmojiData[];
+    members: MemberData[];
     createdTimestamp: number;
-    guildID?: string;
-    id: bigint;
+    guildID: string;
+    id: Snowflake;
 }
