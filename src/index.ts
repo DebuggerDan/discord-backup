@@ -102,7 +102,7 @@ export const create = async (
                 members: [],
                 createdTimestamp: Date.now(),
                 guildID: guild.id,
-                id: options.backupID ?? SnowflakeUtil.generate({ timestamp: Date.now() })
+                id: options.backupID ?? SnowflakeUtil.generate().toString()
             };
             if (options.includeName) {
                 backupData.name = guild.name;

@@ -75,13 +75,14 @@ export const loadRoles = (
                 guild.roles,
                 'create',
                 {
-                    //data:
-                    name: roleData.name,
-                    color: roleData.color,
-                    hoist: roleData.hoist,
-                    //permissions: roleData.permissions,
-                    permissions: BigInt(roleData.permissions),
-                    mentionable: roleData.mentionable
+                    data: {
+                        name: roleData.name,
+                        color: roleData.color,
+                        hoist: roleData.hoist,
+                        //permissions: roleData.permissions,
+                        permissions: BigInt(roleData.permissions),
+                        mentionable: roleData.mentionable
+                    },
                 }
             ]);
         }

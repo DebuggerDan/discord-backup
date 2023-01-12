@@ -22,6 +22,6 @@ export interface BackupData {
     members: MemberData[];
     createdTimestamp: number;
     guildID: string;
-    //id: Snowflake;
-    id: bigint;
+    id: Snowflake;
+    //id: bigint;
 }
