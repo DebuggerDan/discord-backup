@@ -285,23 +285,23 @@ export async function loadChannel(
                     .reverse();
                 messages = messages.slice(messages.length - options.maxMessagesPerChannel);
                 for (const msg of messages) {
-                    const embedsClear: any = [];
+                    // const embedsClear: any = [];
 
-                    msg.embeds.forEach((embed) => {
-                        const clear: any = {};
-                        for (const [key, values] of Object.entries(embed).filter(([_, v]) => !!v)) {
-                            clear[key] = values;
-                        }
-                        if (!!clear.url && !clear.description) clear.description = 'Embed include url';
-                        embedsClear.push(clear);
-                    });
+                    // msg.embeds.forEach((embed) => {
+                    //     const clear: any = {};
+                    //     for (const [key, values] of Object.entries(embed).filter(([_, v]) => !!v)) {
+                    //         clear[key] = values;
+                    //     }
+                    //     if (!!clear.url && !clear.description) clear.description = 'Embed include url';
+                    //     embedsClear.push(clear);
+                    // });
 
                     const sentMsg = await rateLimitManager
                         .resolver(webhook, 'send', {
                             content: msg.content.length ? msg.content : undefined,
                             username: msg.username,
                             avatarURL: msg.avatar,
-                            embeds: embedsClear,
+                            embeds: msg.embeds,
                             files: msg.files.map((f) => new AttachmentBuilder(f.attachment, {
                                 name: f.name
                             })),
@@ -346,26 +346,25 @@ export async function loadChannel(
             createOptions.userLimit = (channelData as VoiceChannelData).userLimit;
             createOptions.type = ChannelType.GuildVoice;
         }
-        rateLimitManager.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
-            //.resolver(guild.channels, 'create', { name: channelData.name, ...createOptions })
-                /* Update channel permissions */
-                const finalPermissions: OverwriteData[] = [];
-                channelData.permissions.forEach((perm) => {
-                    const role = guild.roles.cache.find((r) => r.name === perm.roleName);
-                    if (role) {
-                        finalPermissions.push({
-                            id: role.id,
-                            allow: BigInt(perm.allow),
-                            deny: BigInt(perm.deny)
-                        });
-                    }
-                });
-                await rateLimitManager.resolver(channel.permissionsOverwrites, 'set', finalPermissions);
-                if (channelData.type === ChannelType.GuildText) {
+        rateLimitManager.resolver(guild.channels, 'create', { name: channelData.name, ...createOptions }).then(async (channel) => {//.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
+            /* Update channel permissions */
+            const finalPermissions: OverwriteData[] = [];
+            channelData.permissions.forEach((perm) => {
+                const role = guild.roles.cache.find((r) => r.name === perm.roleName);
+                if (role) {
+                    finalPermissions.push({
+                        id: role.id,
+                        allow: BigInt(perm.allow),
+                        deny: BigInt(perm.deny)
+                    });
+                }
+            });
+            await rateLimitManager.resolver(channel.permissionsOverwrites, 'set', finalPermissions);
+            if (channelData.type === ChannelType.GuildText) {
                 /* Load messages */
-                    let webhook: Webhook|void;
-                    if ((channelData as TextChannelData).messages.length > 0) {
-                        webhook = await loadMessages(channel as TextChannel, (channelData as TextChannelData).messages).catch(() => { });
+                let webhook: Webhook|void;
+                if ((channelData as TextChannelData).messages.length > 0) {
+                    webhook = await loadMessages(channel as TextChannel, (channelData as TextChannelData).messages).catch(() => { });
                 /*
                 if (channelData.type === ChannelType.GuildText && (channelData as TextChannelData).messages.length > 0) {
                     rateLimitManager
