@@ -346,7 +346,7 @@ export async function loadChannel(
             createOptions.userLimit = (channelData as VoiceChannelData).userLimit;
             createOptions.type = ChannelType.GuildVoice;
         }
-        guild.channels.create(createOptions).then(async (channel) => {//.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
+        rateLimitManager.resolver(guild.channels, 'create', { name: channelData.name, ...createOptions }).then(async (channel) => {//.resolver(guild.channels, 'create', createOptions).then(async (channel) => {
             /* Update channel permissions */
             const finalPermissions: OverwriteData[] = [];
             channelData.permissions.forEach((perm) => {
@@ -359,7 +359,7 @@ export async function loadChannel(
                     });
                 }
             });
-            await rateLimitManager.resolver(channel.permissionsOverwrites, 'set', finalPermissions);
+            await rateLimitManager.resolver(channel.permissionOverwrites, 'set', finalPermissions);
             if (channelData.type === ChannelType.GuildText) {
                 /* Load messages */
                 let webhook: Webhook|void;
